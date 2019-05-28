@@ -1,0 +1,5 @@
+AVX512BW_VPCOMPRESSB_Emu.exe moby10b.txt moby10b_descpace.txt
+TSC (Scalar              ):  9458044
+TSC (AVX2_Intrin         ):   776466  SpeedUp (Scalar/AVX2_Intrin         ):  12.181
+TSC (AVX512BW_Intrin     ):   542352  SpeedUp (Scalar/AVX512BW_Intrin     ):  17.439
+TSC (AVX512BW_Asm        ):   515888  SpeedUp (Scalar/AVX512BW_Asm        ):  18.334
