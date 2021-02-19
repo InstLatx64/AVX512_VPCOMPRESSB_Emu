@@ -5,18 +5,9 @@
 
 using namespace std;
 
-#define ISA_RDTSC		0x001
-#define ISA_RDTSCP		0x002
-#define ISA_HWPOPCNT	0x004
-#define ISA_RDRAND		0x008
-#define ISA_AVX2		0x010
-#define ISA_AVX512F		0x020
-#define ISA_AVX512BW	0x040
-#define ISA_AVX512VL	0x080
-#define ISA_AVX512VBMI	0x100
-#define ISA_VPOPCNT		0x200
-#define ISA_BITALG		0x400
-#define ISA_AVX512VBMI2	0x800
+#define RETRY			1000
+
+CPU_Props cpu_props;
 
 extern "C" UINT32 __fastcall CheckISA();
 extern "C" size_t __fastcall Test_VPCOMPRESSD_Asm(const char* src, char* dst, size_t len);
@@ -34,7 +25,7 @@ typedef struct {
 	const char 	name[32];
 	const char 	isaName[16];
 	TEST_PTR	timed;
-	UINT32		isa;
+	ISAs		isa;
 } methods;
 
 methods m[] = {
@@ -44,7 +35,7 @@ methods m[] = {
 	{"AVX512BW_Asm        ",	"AVX512BW   ",	Test_VPCOMPRESSD_Asm,				ISA_AVX512BW },
 	{"AVX512VBMI_Intrin   ",	"AVX512VBMI ",	remove_spaces_avx512vbmi,			ISA_AVX512VBMI },
 	{"AVX512VBMI_Zach     ",	"AVX512VBMI ",	remove_spaces_avx512vbmi_zach,		ISA_AVX512VBMI },
-	{"AVX512VBMI2_Asm     ",	"AVX512VBMI2",	Test_VPCOMPRESSB_Asm,				ISA_AVX512VBMI2 },
+	{"AVX512VBMI2_Asm     ",	"AVX512VBMI2",	Test_VPCOMPRESSB_Asm,				ISA_AVX512_VBMI2 },
 };
 
 //credit: Wojciech Mu³a http://0x80.pl/notesen/2019-01-05-avx512vbmi-remove-spaces.html
@@ -372,7 +363,6 @@ int main(int argc, char* argv[])
 		textfile_nospace.open(argv[2], ios::out | ios::binary);
 		inlength = textfile.tellg();
 		textfile.seekg(0, ios::beg);
-		UINT32 ISA = CheckISA();
 
 		inbuf = new char[inlength];
 		outbuf0 = new char[inlength];
@@ -383,7 +373,7 @@ int main(int argc, char* argv[])
 		diff = Test(remove_spaces_scalar, inbuf, outbuf0, inlength, 0, &compressed, "Scalar", 0.0);
 
 		for (int b = 1; b < sizeof(m) / sizeof(methods); b++) {
-			if ((ISA & m[b].isa) == m[b].isa)
+			if (cpu_props.IsFeat(m[b].isa)) 
 				Test(m[b].timed, inbuf, outbuf1, inlength, outbuf0, &compressed, m[b].name, (double)diff);
 		}
 
