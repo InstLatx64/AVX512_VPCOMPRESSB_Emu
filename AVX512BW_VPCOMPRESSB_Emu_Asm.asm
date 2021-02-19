@@ -128,4 +128,297 @@ ready:
 	ret
 Test_VPCOMPRESSB_Asm endp
 
+Test_VPCOMPRESSB2_Asm	proc
+; in
+; rcx - inbuf
+; rdx - outbuf
+; r8  - length, remain
+; out
+; rax - compressed size
+	xor					eax, eax
+	vbroadcasti64x2		zmm31, xmmword ptr const_lut
+align 16
+mainloop:
+	cmp					r8, 80h
+	jnge				remain
+	vmovdqu8			zmm28, [rcx]
+	vmovdqu8			zmm27, [rcx + 40h]
+	vpshufb				zmm30, zmm31, zmm28
+	vpshufb				zmm29, zmm31, zmm27
+	vpcmpub				k1, zmm30, zmm28, 4
+	vpcmpub				k2, zmm29, zmm27, 4
+compress:
+	vpcompressb			zmm28 {k1}, zmm28
+	vpcompressb			zmm27 {k2}, zmm27
+	kmovq				r10, k1
+	kmovq				r11, k2
+	popcnt				r10, r10
+	popcnt				r11, r11
+	vmovdqu8			zmmword ptr [rdx], zmm28
+	vmovdqu8			zmmword ptr [rdx + r10], zmm27
+	add					rcx, 80h
+	sub					r8, 80h
+	add					rax, r10
+	add					rdx, r10
+	add					rax, r11
+	add					rdx, r11
+	jmp					mainloop
+remain:
+	test				r8, r8
+	jle					ready;
+	mov					r10, -1
+	xor					r11, r11
+	bzhi				r9, r10, r8
+	sub					r8, 40h
+	cmovnge				r8, r11
+	bzhi				r10, r10, r8
+	kmovq				k4, r9
+	kmovq				k5, r10
+	vmovdqu8			zmm28 {k4}{z}, [rcx]
+	vmovdqu8			zmm27 {k5}{z}, [rcx + 40h]
+	vpshufb				zmm30, zmm31, zmm28
+	vpshufb				zmm29, zmm31, zmm27
+	vpcmpub				k1 {k4}, zmm30, zmm28, 4
+	vpcmpub				k2 {k5}, zmm29, zmm27, 4
+	vpcompressb			zmm28 {k1}{z}, zmm28
+	vpcompressb			zmm27 {k2}{z}, zmm27
+	kmovq				r10, k1
+	kmovq				r11, k2
+	popcnt				r10, r10
+	popcnt				r11, r11
+	add					rax, r10
+	add					rax, r11
+	vmovdqu8			zmmword ptr [rdx]{k4}, zmm28
+	vmovdqu8			zmmword ptr [rdx + r10]{k5}, zmm27
+ready:
+	ret
+Test_VPCOMPRESSB2_Asm endp
+
+Test_VPCOMPRESSB4_Asm	proc
+; in
+; rcx - inbuf
+; rdx - outbuf
+; r8  - length, remain
+; out
+; rax - compressed size
+	push				rbx
+	xor					eax, eax
+	vbroadcasti64x2		zmm31, xmmword ptr const_lut
+align 16
+mainloop:
+	cmp					r8, 100h
+	jnge				remain
+	vmovdqu8			zmm28, [rcx]
+	vmovdqu8			zmm27, [rcx + 040h]
+	vmovdqu8			zmm26, [rcx + 080h]
+	vmovdqu8			zmm25, [rcx + 0C0h]
+	vpshufb				zmm30, zmm31, zmm28
+	vpshufb				zmm29, zmm31, zmm27
+	vpshufb				zmm24, zmm31, zmm26
+	vpshufb				zmm23, zmm31, zmm25
+	vpcmpub				k1, zmm30, zmm28, 4
+	vpcmpub				k2, zmm29, zmm27, 4
+	vpcmpub				k3, zmm24, zmm26, 4
+	vpcmpub				k4, zmm23, zmm25, 4
+compress:
+	vpcompressb			zmm28 {k1}{z}, zmm28
+	vpcompressb			zmm27 {k2}{z}, zmm27
+	vpcompressb			zmm26 {k3}{z}, zmm26
+	vpcompressb			zmm25 {k4}{z}, zmm25
+	kmovq				r9, k1
+	kmovq				r10, k2
+	kmovq				r11, k3
+	kmovq				rbx, k4
+	popcnt				r9, r9
+	popcnt				r10, r10
+	popcnt				r11, r11
+	popcnt				rbx, rbx
+
+	add					r10, r9
+	add					r11, r10
+	add					rbx, r11
+
+	vmovdqu8			zmmword ptr [rdx], zmm28
+	vmovdqu8			zmmword ptr [rdx + r9], zmm27
+	vmovdqu8			zmmword ptr [rdx + r10], zmm26
+	vmovdqu8			zmmword ptr [rdx + r11], zmm25
+
+	add					rcx, 100h
+	sub					r8, 100h
+
+	add					rax, rbx
+	add					rdx, rbx
+
+	jmp					mainloop
+remain:
+	test				r8, r8
+	jle					ready;
+	mov					r10, -1
+	xor					r11, r11
+	bzhi				r9, r10, r8
+	kmovq				k4, r9
+	vmovdqu8			zmm28 {k4}{z}, [rcx]
+	sub					r8, 40h
+	cmovnge				r8, r11
+	bzhi				r9, r10, r8
+	kmovq				k5, r9
+	vmovdqu8			zmm27 {k5}{z}, [rcx + 040h]
+	sub					r8, 40h
+	cmovnge				r8, r11
+	bzhi				r9, r10, r8
+	kmovq				k6, r9
+	vmovdqu8			zmm26 {k6}{z}, [rcx + 080h]
+	sub					r8, 40h
+	cmovnge				r8, r11
+	bzhi				r9, r10, r8
+	kmovq				k7, r9
+	vmovdqu8			zmm25 {k7}{z}, [rcx + 0C0h]
+
+	vpshufb				zmm30, zmm31, zmm28
+	vpshufb				zmm29, zmm31, zmm27
+	vpshufb				zmm24, zmm31, zmm26
+	vpshufb				zmm23, zmm31, zmm25
+	vpcmpub				k1 {k4}, zmm30, zmm28, 4
+	vpcmpub				k2 {k5}, zmm29, zmm27, 4
+	vpcmpub				k3 {k6}, zmm24, zmm26, 4
+	vpcmpub				k0 {k7}, zmm23, zmm25, 4
+	vpcompressb			zmm28 {k1}{z}, zmm28
+	kmovq				r9, k1
+	kmovq				k1, k0
+	vpcompressb			zmm27 {k2}{z}, zmm27
+	vpcompressb			zmm26 {k3}{z}, zmm26
+	vpcompressb			zmm25 {k1}{z}, zmm25
+	kmovq				r10, k2
+	kmovq				r11, k3
+	kmovq				rbx, k0
+
+	popcnt				r9, r9
+	popcnt				r10, r10
+	popcnt				r11, r11
+	popcnt				rbx, rbx
+
+	add					r10, r9
+	add					r11, r10
+	add					rbx, r11
+	add					rax, rbx
+	
+	vmovdqu8			zmmword ptr [rdx]{k4}, zmm28
+	vmovdqu8			zmmword ptr [rdx + r9]{k5}, zmm27
+	vmovdqu8			zmmword ptr [rdx + r10]{k6}, zmm26
+	vmovdqu8			zmmword ptr [rdx + r11]{k7}, zmm25
+
+ready:
+	pop					rbx
+	ret
+Test_VPCOMPRESSB4_Asm endp
+
+Test_VPCOMPRESSB_ymm_Asm	proc
+; in
+; rcx - inbuf
+; rdx - outbuf
+; r8  - length, remain
+; out
+; rax - compressed size
+	xor					eax, eax
+	kxnorq				k4, k4, k4
+	vbroadcasti128		ymm2, xmmword ptr const_lut
+align 16
+mainloop:
+	cmp					r8, 20h
+	jnge				remain
+	vmovdqu8			ymm0, [rcx]
+	vpshufb				ymm1, ymm2, ymm0
+	vpcmpub				k1, ymm1, ymm0, 4
+	vpcompressb			ymm0 {k1}, ymm0
+	kmovd				r10d, k1
+	popcnt				r10d, r10d
+	vmovdqu8			ymmword ptr [rdx], ymm0
+	add					rcx, 20h
+	sub					r8, 20h
+	add					rax, r10
+	add					rdx, r10
+	jmp					mainloop
+remain:
+	test				r8, r8
+	jle					ready;
+	mov					r9d, -1
+	bzhi				r9d, r9d, r8d
+	kmovd				k4, r9d
+	vmovdqu8			ymm0 {k4}{z}, [rcx]
+	vpshufb				ymm1 {k4}, ymm2, ymm0
+	vpcmpub				k1 {k4}, ymm1, ymm0, 4
+	vpcompressb			ymm0 {k1}, ymm0
+	kmovd				r10d, k1
+	popcnt				r10d, r10d
+	add					rax, r10
+	vmovdqu8			ymmword ptr [rdx]{k4}, ymm0
+ready:
+	ret
+Test_VPCOMPRESSB_ymm_Asm endp
+
+Test_VPCOMPRESSB2_ymm_Asm	proc
+; in
+; rcx - inbuf
+; rdx - outbuf
+; r8  - length, remain
+; out
+; rax - compressed size
+	xor					eax, eax
+	vbroadcasti128		ymm2, xmmword ptr const_lut
+align 16
+mainloop:
+	cmp					r8, 40h
+	jnge				remain
+	vmovdqu8			ymm0, [rcx]
+	vmovdqu8			ymm3, [rcx + 20h]
+	vpshufb				ymm1, ymm2, ymm0
+	vpshufb				ymm4, ymm2, ymm3
+	vpcmpub				k1, ymm1, ymm0, 4
+	vpcmpub				k2, ymm4, ymm3, 4
+	vpcompressb			ymm0 {k1}, ymm0
+	vpcompressb			ymm3 {k2}, ymm3
+	kmovd				r10d, k1
+	kmovd				r11d, k2
+	popcnt				r10d, r10d
+	popcnt				r11d, r11d
+	vmovdqu8			ymmword ptr [rdx], ymm0
+	vmovdqu8			ymmword ptr [rdx + r10], ymm3
+	add					rcx, 40h
+	sub					r8, 40h
+	add					rax, r10
+	add					rdx, r10
+	add					rax, r11
+	add					rdx, r11
+	jmp					mainloop
+remain:
+	test				r8, r8
+	jle					ready;
+	mov					r10d, -1
+	xor					r11d, r11d
+	bzhi				r9d, r10d, r8d
+	sub					r8, 20h
+	cmovnge				r8d, r11d
+	bzhi				r10d, r10d, r8d
+	kmovq				k4, r9
+	kmovq				k5, r10
+	vmovdqu8			ymm0 {k4}{z}, [rcx]
+	vmovdqu8			ymm3 {k5}{z}, [rcx + 20h]
+	vpshufb				ymm1 {k4}, ymm2, ymm0
+	vpshufb				ymm4 {k5}, ymm2, ymm3
+	vpcmpub				k1 {k4}, ymm1, ymm0, 4
+	vpcmpub				k2 {k5}, ymm4, ymm3, 4
+	vpcompressb			ymm0 {k1}, ymm0
+	vpcompressb			ymm3 {k2}, ymm3
+	kmovd				r10d, k1
+	kmovd				r11d, k2
+	popcnt				r10d, r10d
+	popcnt				r11d, r11d
+	vmovdqu8			ymmword ptr [rdx]{k4}, ymm0
+	vmovdqu8			ymmword ptr [rdx + r10]{k5}, ymm3
+	add					rax, r10
+	jmp					ready
+ready:
+	ret
+Test_VPCOMPRESSB2_ymm_Asm endp
+
 end

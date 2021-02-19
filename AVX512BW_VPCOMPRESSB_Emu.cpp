@@ -9,9 +9,12 @@ using namespace std;
 
 CPU_Props cpu_props;
 
-extern "C" UINT32 __fastcall CheckISA();
 extern "C" size_t __fastcall Test_VPCOMPRESSD_Asm(const char* src, char* dst, size_t len);
 extern "C" size_t __fastcall Test_VPCOMPRESSB_Asm(const char* src, char* dst, size_t len);
+extern "C" size_t __fastcall Test_VPCOMPRESSB_ymm_Asm(const char* src, char* dst, size_t len);
+extern "C" size_t __fastcall Test_VPCOMPRESSB2_Asm(const char* src, char* dst, size_t len);
+extern "C" size_t __fastcall Test_VPCOMPRESSB4_Asm(const char* src, char* dst, size_t len);
+extern "C" size_t __fastcall Test_VPCOMPRESSB2_ymm_Asm(const char* src, char* dst, size_t len);
 
 typedef size_t(__fastcall* TEST_PTR)(const char*, char*, size_t);
 
@@ -34,11 +37,15 @@ typedef struct {
 methods m[] = {
 	{"Scalar              ",	"X64        ",	32, 500,	remove_spaces_scalar,				ISA_RDTSC,			true},
 	{"AVX2_VPERMD         ",	"AVX2       ",	32, RETRY,	despace_avx2_vpermd,				ISA_AVX2,			true},
-	{"AVX512BW_Intrin     ",	"AVX512BW   ",	32, RETRY,	remove_spaces_avx512bw,				ISA_AVX512BW,		true},
-	{"AVX512BW_Asm        ",	"AVX512BW   ",	32, RETRY,	Test_VPCOMPRESSD_Asm,				ISA_AVX512BW,		true},
-	{"AVX512VBMI_Intrin   ",	"AVX512VBMI ",	32, RETRY,	remove_spaces_avx512vbmi,			ISA_AVX512VBMI,		true},
-	{"AVX512VBMI_Zach     ",	"AVX512VBMI ",	32, RETRY,	remove_spaces_avx512vbmi_zach,		ISA_AVX512VBMI,		true},
-	{"AVX512VBMI2_Asm     ",	"AVX512VBMI2",	32, RETRY,	Test_VPCOMPRESSB_Asm,				ISA_AVX512_VBMI2,	true},
+	{"AVX512BW_VPCOMPRESSD           ",	"AVX512BW   ",	64,	RETRY,	remove_spaces_avx512bw,				ISA_AVX512BW,		true},
+	{"AVX512BW_VPCOMPRESSD_Asm       ",	"AVX512BW   ",	64,	RETRY,	Test_VPCOMPRESSD_Asm,				ISA_AVX512BW,		true},
+	{"AVX512VBMI_Intrin              ",	"AVX512VBMI ",	64, RETRY,	remove_spaces_avx512vbmi,			ISA_AVX512VBMI,		true},
+	{"AVX512VBMI_Zach                ",	"AVX512VBMI ",	64, RETRY,	remove_spaces_avx512vbmi_zach,		ISA_AVX512VBMI,		true},
+	{"AVX512VBMI2_VPCOMPRESSB_Asm    ",	"AVX512VBMI2",	64,	RETRY,	Test_VPCOMPRESSB_Asm,				ISA_AVX512_VBMI2,	true},
+	{"AVX512VBMI2_VPCOMPRESSB2_Asm   ",	"AVX512VBMI2",	128,RETRY,	Test_VPCOMPRESSB2_Asm,				ISA_AVX512_VBMI2,	true},
+	{"AVX512VBMI2_VPCOMPRESSB4_Asm   ",	"AVX512VBMI2",	256,RETRY,	Test_VPCOMPRESSB4_Asm,				ISA_AVX512_VBMI2,	true},
+	{"AVX512VBMI2_VPCOMPRESSB_ymm_Asm",	"AVX512VBMI2",	32,	RETRY,	Test_VPCOMPRESSB_ymm_Asm,			ISA_AVX512_VBMI2,	true},
+	{"AVX512VBMI2_VPCOMPRESSB2ymm_Asm",	"AVX512VBMI2",	64,	RETRY,	Test_VPCOMPRESSB2_ymm_Asm,			ISA_AVX512_VBMI2,	true},
 };
 
 //credit: Wojciech Mu³a http://0x80.pl/notesen/2019-01-05-avx512vbmi-remove-spaces.html
