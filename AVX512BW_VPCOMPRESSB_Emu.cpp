@@ -23,6 +23,7 @@ size_t remove_spaces_avx512vbmi(const char* src, char* dst, size_t n);
 size_t remove_spaces_avx512bw(const char* src, char* dst, size_t n);
 size_t remove_spaces_avx512vbmi_zach(const char* src, char* dst, size_t n);
 size_t despace_avx2_vpermd(const char* src_void, char* dst_void, size_t length);
+size_t despace_branchless(unsigned char* dst_void, unsigned char * src_void, size_t length);
 
 typedef struct {
 	const char 	name[32];
@@ -35,7 +36,7 @@ typedef struct {
 } methods;
 
 methods m[] = {
-	{"Scalar              ",	"X64        ",	32, 500,	remove_spaces_scalar,				ISA_RDTSC,			true},
+	{"Scalar              ",	"X64        ",	 1, 500,	remove_spaces_scalar,				ISA_RDTSC,			true},
 	{"AVX2_VPERMD         ",	"AVX2       ",	32, RETRY,	despace_avx2_vpermd,				ISA_AVX2,			true},
 	{"AVX512BW_VPCOMPRESSD           ",	"AVX512BW   ",	64,	RETRY,	remove_spaces_avx512bw,				ISA_AVX512BW,		true},
 	{"AVX512BW_VPCOMPRESSD_Asm       ",	"AVX512BW   ",	64,	RETRY,	Test_VPCOMPRESSD_Asm,				ISA_AVX512BW,		true},
@@ -61,8 +62,9 @@ size_t remove_spaces_scalar(const char* src, char* dst, size_t n) {
 	return dst - startdst;
 }
 
-size_t remove_spaces_avx512vbmi(const char* src, char* dst, size_t n) {
-	char* startdst = dst;
+size_t remove_spaces_avx512vbmi(const char* src_void, char* dst_void, size_t length) {
+	uint8_t* src = (uint8_t*)src_void;
+	uint8_t* dst = (uint8_t*)dst_void;
 
 	//assert(n % 64 == 0);
 
@@ -80,9 +82,9 @@ size_t remove_spaces_avx512vbmi(const char* src, char* dst, size_t n) {
 	const __m512i spaces = _mm512_set1_epi8(' ');
 
 	size_t len;
-	for (size_t i = 0; i < n; i += 64) {
+	for (size_t i = 0; i < (length & ~0x3f); i += 64) {
 
-		const __m512i input = _mm512_loadu_si512((const __m512i*)(src + i));
+		const __m512i input = _mm512_loadu_si512((const __m512i*)(src));
 		__m512i output;
 
 		uint64_t mask = _mm512_cmpeq_epi8_mask(input, spaces)
@@ -131,9 +133,11 @@ size_t remove_spaces_avx512vbmi(const char* src, char* dst, size_t n) {
 
 		_mm512_storeu_si512((__m512i*)(dst), output);
 		dst += len;
+		src += 64;
 	}
 
-	return dst - startdst;
+	dst += despace_branchless(dst, src, length & 63);
+	return (size_t)(dst - ((uint8_t*)dst_void));
 }
 
 //idea: https://branchfree.org/2018/05/22/bits-to-indexes-in-bmi2-and-avx-512/
