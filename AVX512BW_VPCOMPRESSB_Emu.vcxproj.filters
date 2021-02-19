@@ -18,10 +18,24 @@
     <ClCompile Include="AVX512BW_VPCOMPRESSB_Emu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CPU_Props.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="AVX512BW_VPCOMPRESSB_Emu_Asm.asm">
       <Filter>Source Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CPU_Props.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

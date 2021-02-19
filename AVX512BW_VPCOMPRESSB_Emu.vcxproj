@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -155,11 +155,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AVX512BW_VPCOMPRESSB_Emu.cpp" />
+    <ClCompile Include="CPU_Props.cpp" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="AVX512BW_VPCOMPRESSB_Emu_Asm.asm">
       <FileType>Document</FileType>
     </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CPU_Props.h" />
+    <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

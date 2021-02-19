@@ -1,11 +1,7 @@
 // AVX512BW_VPCOMPRESSB_Emu
 //
 
-#include <iostream>
-#include <fstream>
-#include <intrin.h>
-#include <windows.h>
-#include <iomanip>
+#include "stdafx.h"
 
 using namespace std;
 
