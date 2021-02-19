@@ -33,7 +33,7 @@ typedef struct {
 
 methods m[] = {
 	{"Scalar              ",	"X64        ",	32, 500,	remove_spaces_scalar,				ISA_RDTSC,			true},
-	{"AVX2_Intrin         ",	"AVX2       ",	32, RETRY,	despace_avx2_vpermd,				ISA_AVX2,			true},
+	{"AVX2_VPERMD         ",	"AVX2       ",	32, RETRY,	despace_avx2_vpermd,				ISA_AVX2,			true},
 	{"AVX512BW_Intrin     ",	"AVX512BW   ",	32, RETRY,	remove_spaces_avx512bw,				ISA_AVX512BW,		true},
 	{"AVX512BW_Asm        ",	"AVX512BW   ",	32, RETRY,	Test_VPCOMPRESSD_Asm,				ISA_AVX512BW,		true},
 	{"AVX512VBMI_Intrin   ",	"AVX512VBMI ",	32, RETRY,	remove_spaces_avx512vbmi,			ISA_AVX512VBMI,		true},
@@ -253,10 +253,10 @@ size_t despace_avx2_vpermd(const char* src_void, char* dst_void, size_t length)
 	uint8_t* dst = (uint8_t*)dst_void;
 	const __m256i lut_cntrl = _mm256_setr_epi8(
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00,
+		0x00, -1, -1, 0x00, 0x00, -1, 0x00, 0x00,
 		//
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00
+		0x00, -1, -1, 0x00, 0x00, -1, 0x00, 0x00
 	);
 	// hi and lo dwords are combined into a qword using xor
 	// qword = dword(lo[0b000] ^ hi[id]), dword(lo[id] ^ hi[0b000])
@@ -320,7 +320,7 @@ size_t despace_avx2_vpermd(const char* src_void, char* dst_void, size_t length)
 		*((uint64_t*)dst) = _mm256_extract_epi64(r0, 3);
 		dst += _mm256_extract_epi64(r2, 3);
 	}
-	dst += despace_branchless(dst, src, length);
+	dst += despace_branchless(dst, src, length & 31);
 	return (size_t)(dst - ((uint8_t*)dst_void));
 }
 
