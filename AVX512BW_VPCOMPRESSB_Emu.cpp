@@ -168,10 +168,25 @@ size_t remove_spaces_avx512bw(const char* src, char* dst, size_t n) {
 	return dst - startdst;
 }
 
+size_t despace_branchless(unsigned char* dst_void, unsigned char * src_void, size_t length)
+{
+	uint8_t* src = (uint8_t*)src_void;
+	uint8_t* dst = (uint8_t*)dst_void;
+
+	for (; length != 0; length--) {
+		uint8_t c = *src++;
+		*dst = c;
+		dst += !!((c != 0x20) && (c != 0x0A) && (c != 0x0D) && (c != 0x09));
+	}
+	return (size_t)(dst - ((uint8_t*)dst_void));
+}
+
+
 //copy from http://0x80.pl/notesen/2019-01-05-avx512vbmi-remove-spaces.html
 //credit https://github.com/zwegner/
-size_t remove_spaces_avx512vbmi_zach(const char* src, char* dst, size_t n) {
-	char* startdst = dst;
+size_t remove_spaces_avx512vbmi_zach(const char* src_void, char* dst_void, size_t length) {
+	uint8_t* src = (uint8_t*)src_void;
+	uint8_t* dst = (uint8_t*)dst_void;
 	//assert(n % 64 == 0);
 
 	const __m512i NL = _mm512_set1_epi8('\n');
@@ -197,8 +212,8 @@ size_t remove_spaces_avx512vbmi_zach(const char* src, char* dst, size_t n) {
 	};
 
 	size_t len;
-	for (size_t i = 0; i < n; i += 64) {
-		const __m512i input = _mm512_loadu_si512((const __m512i*)(src + i));
+	for (size_t i = 0; i < (length & ~0x3f); i += 64) {
+		const __m512i input = _mm512_loadu_si512((const __m512i*)(src));
 		__m512i output;
 
 		uint64_t mask = _mm512_cmpeq_epi8_mask(input, spaces)
@@ -224,21 +239,10 @@ size_t remove_spaces_avx512vbmi_zach(const char* src, char* dst, size_t n) {
 
 		_mm512_storeu_si512((__m512i*)(dst), output);
 		dst += len;
+		src += 64;
 	}
 
-	return dst - startdst;
-}
-
-size_t despace_branchless(unsigned char* dst_void, unsigned char * src_void, size_t length)
-{
-	uint8_t* src = (uint8_t*)src_void;
-	uint8_t* dst = (uint8_t*)dst_void;
-
-	for (; length != 0; length--) {
-		uint8_t c = *src++;
-		*dst = c;
-		dst += !!((c != 0x20) && (c != 0x0A) && (c != 0x0D) && (c != 0x09));
-	}
+	dst += despace_branchless(dst, src, length & 63);
 	return (size_t)(dst - ((uint8_t*)dst_void));
 }
 
