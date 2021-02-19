@@ -129,6 +129,9 @@ size_t remove_spaces_avx512vbmi(const char* src, char* dst, size_t n) {
 	return dst - startdst;
 }
 
+//idea: https://branchfree.org/2018/05/22/bits-to-indexes-in-bmi2-and-avx-512/
+//geofflangdale
+//vpcmpeqb -> pshufb credit aqrit https://gist.github.com/aqrit/6e73ca6ff52f72a2b121d584745f89f3
 #define VPCOMPRESSD_Core(addr) \
 	_mm512_mask_cvtepi32_storeu_epi8(dst, full, _mm512_mask_compress_epi32(zero, __mmask16(mask), _mm512_cvtepu8_epi32(*(const __m128i*)(addr))));	\
 	_mm512_mask_cvtepi32_storeu_epi8(dst + _mm_popcnt_u64((WORD)mask), full, _mm512_mask_compress_epi32(zero, __mmask16(mask >> 16), _mm512_cvtepu8_epi32(*(const __m128i*)(addr + 16)))); \
@@ -138,18 +141,14 @@ size_t remove_spaces_avx512vbmi(const char* src, char* dst, size_t n) {
 size_t remove_spaces_avx512bw(const char* src, char* dst, size_t n) {
 	char* startdst = dst;
 
-	const __m512i NL = _mm512_set1_epi8('\n');
-	const __m512i CR = _mm512_set1_epi8('\r');
-	const __m512i spaces = _mm512_set1_epi8(' ');
 	const __m512i zero = _mm512_setzero_si512();
+	const __m512i lut_cntrl2	= _mm512_broadcast_i32x4(_mm_setr_epi8(' ', 0, 0, 0, 0, 0, 0, 0, 0, '\t', '\n', 0, 0, '\r', 0, 0));
 	const __mmask16 full = 0xffff;
 	size_t i = 0;
 	uint64_t mask;
 	for (size_t i = 0; i < (n & ~0x3f); i += 64) {
 		const __m512i input = _mm512_loadu_si512((const __m512i*)(src + i));
-		mask = _mm512_cmpneq_epi8_mask(input, spaces)
-			& _mm512_cmpneq_epi8_mask(input, NL)
-			& _mm512_cmpneq_epi8_mask(input, CR);
+		mask = _mm512_cmpneq_epi8_mask(_mm512_shuffle_epi8(lut_cntrl2, input), input);
 
 		VPCOMPRESSD_Core(src + i)
 		dst += _mm_popcnt_u64(mask);
@@ -158,9 +157,7 @@ size_t remove_spaces_avx512bw(const char* src, char* dst, size_t n) {
 		mask = _bzhi_u64(~0ULL, (int)(n & 0x3f));
 		const char * addr = src + (n & ~0x3f);
 		const __m512i input = _mm512_maskz_loadu_epi8(mask, (const __m512i*)(addr));
-		mask &= _mm512_cmpneq_epi8_mask(input, spaces)
-			& _mm512_cmpneq_epi8_mask(input, NL)
-			& _mm512_cmpneq_epi8_mask(input, CR);
+		mask = _mm512_mask_cmpneq_epi8_mask(mask, _mm512_shuffle_epi8(lut_cntrl2, input), input);
 
 		VPCOMPRESSD_Core(addr)
 		dst += _mm_popcnt_u64(mask);
