@@ -24,18 +24,21 @@ size_t despace_avx2_vpermd(const char* src_void, char* dst_void, size_t length);
 typedef struct {
 	const char 	name[32];
 	const char 	isaName[16];
+	int			length;
+	int			retry;
 	TEST_PTR	timed;
 	ISAs		isa;
+	bool		test;
 } methods;
 
 methods m[] = {
-	{"Scalar              ",	"X64        ",	remove_spaces_scalar,				ISA_RDTSC },
-	{"AVX2_Intrin         ",	"AVX2       ",	despace_avx2_vpermd,				ISA_AVX2 },
-	{"AVX512BW_Intrin     ",	"AVX512BW   ",	remove_spaces_avx512bw,				ISA_AVX512BW },
-	{"AVX512BW_Asm        ",	"AVX512BW   ",	Test_VPCOMPRESSD_Asm,				ISA_AVX512BW },
-	{"AVX512VBMI_Intrin   ",	"AVX512VBMI ",	remove_spaces_avx512vbmi,			ISA_AVX512VBMI },
-	{"AVX512VBMI_Zach     ",	"AVX512VBMI ",	remove_spaces_avx512vbmi_zach,		ISA_AVX512VBMI },
-	{"AVX512VBMI2_Asm     ",	"AVX512VBMI2",	Test_VPCOMPRESSB_Asm,				ISA_AVX512_VBMI2 },
+	{"Scalar              ",	"X64        ",	32, 500,	remove_spaces_scalar,				ISA_RDTSC,			true},
+	{"AVX2_Intrin         ",	"AVX2       ",	32, RETRY,	despace_avx2_vpermd,				ISA_AVX2,			true},
+	{"AVX512BW_Intrin     ",	"AVX512BW   ",	32, RETRY,	remove_spaces_avx512bw,				ISA_AVX512BW,		true},
+	{"AVX512BW_Asm        ",	"AVX512BW   ",	32, RETRY,	Test_VPCOMPRESSD_Asm,				ISA_AVX512BW,		true},
+	{"AVX512VBMI_Intrin   ",	"AVX512VBMI ",	32, RETRY,	remove_spaces_avx512vbmi,			ISA_AVX512VBMI,		true},
+	{"AVX512VBMI_Zach     ",	"AVX512VBMI ",	32, RETRY,	remove_spaces_avx512vbmi_zach,		ISA_AVX512VBMI,		true},
+	{"AVX512VBMI2_Asm     ",	"AVX512VBMI2",	32, RETRY,	Test_VPCOMPRESSB_Asm,				ISA_AVX512_VBMI2,	true},
 };
 
 //credit: Wojciech Mu³a http://0x80.pl/notesen/2019-01-05-avx512vbmi-remove-spaces.html
@@ -317,30 +320,39 @@ size_t despace_avx2_vpermd(const char* src_void, char* dst_void, size_t length)
 	return (size_t)(dst - ((uint8_t*)dst_void));
 }
 
-unsigned __int64 Test(TEST_PTR t, char* inbuf, char* outbuf, size_t len, char* refbuf, size_t* compressed, const char * methodName, double refTime = 0.0) {
-	unsigned __int64 startTime, endTime, diff = MAXULONG64;
+unsigned __int64 Test(int n, char* inbuf, char* outbuf, size_t len, char* refbuf, size_t* compressed, double refTime = 0.0) {
+	unsigned __int64 startTime = 0, endTime = 0, diff = MAXULONG64;
+	TEST_PTR t = m[n].timed;
 	memset(outbuf, 0, len);
 	*compressed = (t)(inbuf, outbuf, len);
-	for (int retries = 0; retries < 1000; retries++) {
+#if !defined(_DEBUG)
+	for (int retries = 0; retries < m[n].retry; retries++) {
 		startTime = __rdtsc();
 		(t)(inbuf, outbuf, len);
 		endTime = __rdtsc();
 		diff = min(diff, endTime - startTime);
 	}
+#endif
 
-	cout <<"TSC (" << std::setw(20) << left << methodName << "):" << dec << std::setw(9) << right << std::setprecision(3) << fixed << diff;
-	if (refTime != 0)
-		cout << "  SpeedUp (Scalar/" << std::setw(20) << left << methodName << "):" << std::setw(8)<< right << std::setprecision(3) << fixed << refTime / (double)diff << endl;
-	else
+	cout << std::setw(2) << right << n << ' ';
+	cout <<"TSC (" << std::setw(31) << left << m[n].name << "):" << dec << std::setw(9) << right << std::setprecision(3) << fixed << diff;
+	if (refTime != 0) {
+		cout << "  SpeedUp (Scalar/" << std::setw(20) << left << m[n].name << "):";
+		cout << std::setw(8)<< right << std::setprecision(3) << fixed << refTime / (double)diff << ' ';
+		cout << std::setw(8)<< right << std::setprecision(3) << fixed << (double)diff / ((double)len / (double)m[n].length) << ' ';
+		cout << m[n].length << endl;
+	} else {
 		cout << endl;
-
-	if (refbuf != 0) {
+	}
+	if ((m[n].test) && (refbuf != 0)) {
 		int res = memcmp(outbuf, refbuf, *compressed);
 		if (res != 0) {
 			cout << endl << "Difference!" << endl;
 			for (size_t i = 0; i < *compressed; i++)
-				if (outbuf[i] != refbuf[i])
+				if (outbuf[i] != refbuf[i]) {
 					cout << "index:" << dec << i << " outbuf:" << hex << outbuf[i] << " refbuf:" << hex << refbuf[i] << endl;
+					break;
+				}
 		}
 	}
 
@@ -370,12 +382,22 @@ int main(int argc, char* argv[])
 
 		textfile.read(inbuf, inlength);
 
-		diff = Test(remove_spaces_scalar, inbuf, outbuf0, inlength, 0, &compressed, "Scalar", 0.0);
-
+		cout << "----------------------------------------" << endl;
+		diff = Test(0, inbuf, outbuf0, inlength, 0, &compressed, 0.0);
+		unsigned __int64 bestDiff = MAXULONG64, diff2 = 0;
+		int best = 0;
 		for (int b = 1; b < sizeof(m) / sizeof(methods); b++) {
-			if (cpu_props.IsFeat(m[b].isa)) 
-				Test(m[b].timed, inbuf, outbuf1, inlength, outbuf0, &compressed, m[b].name, (double)diff);
+			if (cpu_props.IsFeat(m[b].isa)) {
+				diff2 = Test(b, inbuf, outbuf1, inlength, outbuf0, &compressed, (double)diff);
+				if (diff2 < bestDiff) {
+					bestDiff = diff2;
+					best = b;
+				}
+			}
 		}
+		cout << "========================================" << endl;
+		cout << std::setw(2) << left << best << ' ';
+		cout <<"TSC (" << std::setw(31) << right << m[best].name << "):" << dec << std::setw(9) << right << std::setprecision(3) << fixed << bestDiff << endl;
 
 		textfile_nospace.write(outbuf1, compressed);
 		textfile_nospace.close();
