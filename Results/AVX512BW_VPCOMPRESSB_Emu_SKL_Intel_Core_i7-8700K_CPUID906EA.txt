@@ -1,0 +1,7 @@
+ TSC (Scalar                         ):  9929328
+ TSC (SSE41                          ):   677362  SpeedUp (Scalar/SSE41                          ):  14.659    8.628 16
+ TSC (AVX2_VPERMD                    ):   771030  SpeedUp (Scalar/AVX2_VPERMD                    ):  12.878   19.641 32
+ TSC (AVX2_VPERMD2                   ):   433574  SpeedUp (Scalar/AVX2_VPERMD2                   ):  22.901   11.045 32
+ TSC (AVX2_SKL_Asm                   ):   400448  SpeedUp (Scalar/AVX2_SKL_Asm                   ):  24.796   10.201 32
+======================================
+ TSC (AVX2_SKL_Asm                   ):   400448

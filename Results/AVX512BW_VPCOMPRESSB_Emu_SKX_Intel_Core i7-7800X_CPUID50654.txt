@@ -1,0 +1,9 @@
+ TSC (Scalar                         ): 10001984
+ TSC (SSE41                          ):   678200  SpeedUp (Scalar/SSE41                          ):  14.748    8.638 16
+ TSC (AVX2_VPERMD                    ):   773948  SpeedUp (Scalar/AVX2_VPERMD                    ):  12.923   19.716 32
+ TSC (AVX2_VPERMD2                   ):   438026  SpeedUp (Scalar/AVX2_VPERMD2                   ):  22.834   11.158 32
+ TSC (AVX512BW_VPCOMPRESSD           ):   514202  SpeedUp (Scalar/AVX512BW_VPCOMPRESSD           ):  19.451   26.198 64
+ TSC (AVX512BW_VPCOMPRESSD_Asm       ):   493456  SpeedUp (Scalar/AVX512BW_VPCOMPRESSD_Asm       ):  20.269   25.141 64
+ TSC (AVX512BW_SKX_Asm               ):   321868  SpeedUp (Scalar/AVX512BW_SKX_Asm               ):  31.075   16.399 64
+======================================
+ TSC (AVX512BW_SKX_Asm               ):   321868

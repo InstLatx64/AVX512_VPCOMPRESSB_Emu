@@ -1,9 +1,0 @@
-Intel Core i3-8121U
-AVX512BW_VPCOMPRESSB_Emu.exe moby10b.txt moby10b_descpace.txt
-TSC (Scalar              ):  9166196
-TSC (AVX2_Intrin         ):   775350  SpeedUp (Scalar/AVX2_Intrin         ):  11.822
-TSC (AVX512BW_Intrin     ):   536986  SpeedUp (Scalar/AVX512BW_Intrin     ):  17.070
-TSC (AVX512BW_Asm        ):   514714  SpeedUp (Scalar/AVX512BW_Asm        ):  17.808
-TSC (AVX512VBMI_Intrin   ):  2641360  SpeedUp (Scalar/AVX512VBMI_Intrin   ):   3.470
-TSC (AVX512VBMI_Zach     ):   440968  SpeedUp (Scalar/AVX512VBMI_Zach     ):  20.787
-
