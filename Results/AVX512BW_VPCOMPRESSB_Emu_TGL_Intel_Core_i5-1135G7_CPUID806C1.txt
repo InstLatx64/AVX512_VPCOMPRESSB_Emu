@@ -1,16 +1,19 @@
- TSC (Scalar                         ):  9816343
- TSC (SSE41                          ):   611618  SpeedUp (Scalar/SSE41                          ):  16.050    7.790 16
- TSC (AVX2_VPERMD                    ):   524753  SpeedUp (Scalar/AVX2_VPERMD                    ):  18.707   13.368 32
- TSC (AVX2_VPERMD2                   ):   368222  SpeedUp (Scalar/AVX2_VPERMD2                   ):  26.659    9.380 32
- TSC (AVX512BW_VPCOMPRESSD           ):   517663  SpeedUp (Scalar/AVX512BW_VPCOMPRESSD           ):  18.963   26.374 64
- TSC (AVX512BW_VPCOMPRESSD_Asm       ):   496680  SpeedUp (Scalar/AVX512BW_VPCOMPRESSD_Asm       ):  19.764   25.305 64
- TSC (AVX512VBMI_Intrin              ):  2506254  SpeedUp (Scalar/AVX512VBMI_Intrin              ):   3.917  127.690 64
- TSC (AVX512VBMI_Zach                ):   378927  SpeedUp (Scalar/AVX512VBMI_Zach                ):  25.906   19.306 64
- TSC (AVX512VBMI2_VPCOMPRESSB_Asm    ):   220500  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB_Asm    ):  44.519   11.234 64
- TSC (AVX512VBMI2_VPCOMPRESSB2_Asm   ):   210881  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB2_Asm   ):  46.549   21.488 128
- TSC (AVX512VBMI2_VPCOMPRESSB4_Asm   ):   212176  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB4_Asm   ):  46.265   43.240 256
- TSC (AVX512VBMI2_VPCOMPRESSB_ymm_Asm):   196964  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB_ymm_Asm):  49.838    5.018 32
- TSC (AVX512VBMI2_VPCOMPRESSB2ymm_Asm):   199728  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB2ymm_Asm):  49.149   10.176 64
- TSC (AVX512BW_SKX_Asm               ):   228990  SpeedUp (Scalar/AVX512BW_SKX_Asm               ):  42.808   11.667 64
-======================================
- TSC (AVX512VBMI2_VPCOMPRESSB_ymm_Asm):   196964
+ TSC (Scalar                         ):  9794949
+ TSC (SSE4_DESPACE_BRANCHLESS        ):   426214  SpeedUp (Scalar/SSE4_DESPACE_BRANCHLESS        ):  22.981    5.429    0.339 16
+ TSC (SSE4_DESPACE_BRANCHLESS_U4     ):   414002  SpeedUp (Scalar/SSE4_DESPACE_BRANCHLESS_U4     ):  23.659    5.273    0.330 16
+ TSC (SSE4_DESPACE_BRANCHLESS_U2     ):   407860  SpeedUp (Scalar/SSE4_DESPACE_BRANCHLESS_U2     ):  24.015    5.195    0.325 16
+ TSC (SSE41                          ):   610242  SpeedUp (Scalar/SSE41                          ):  16.051    7.773    0.486 16
+ TSC (AVX2_DESPACE_BRANCHLESS        ):   423269  SpeedUp (Scalar/AVX2_DESPACE_BRANCHLESS        ):  23.141   10.782    0.337 32
+ TSC (AVX2_DESPACE_BRANCHLESS_U2     ):   401716  SpeedUp (Scalar/AVX2_DESPACE_BRANCHLESS_U2     ):  24.383   10.233    0.320 32
+ TSC (AVX2_VPERMD                    ):   523705  SpeedUp (Scalar/AVX2_VPERMD                    ):  18.703   13.341    0.417 32
+ TSC (AVX2_VPERMD2                   ):   367932  SpeedUp (Scalar/AVX2_VPERMD2                   ):  26.622    9.373    0.293 32
+ TSC (AVX512BW_VPCOMPRESSD           ):   516937  SpeedUp (Scalar/AVX512BW_VPCOMPRESSD           ):  18.948   26.337    0.412 64
+ TSC (AVX512BW_VPCOMPRESSD_Asm       ):   496292  SpeedUp (Scalar/AVX512BW_VPCOMPRESSD_Asm       ):  19.736   25.285    0.395 64
+ TSC (AVX512BW_TGL_Asm               ):   227673  SpeedUp (Scalar/AVX512BW_TGL_Asm               ):  43.022   11.600    0.181 64
+ TSC (AVX512VBMI_Intrin              ):  2527782  SpeedUp (Scalar/AVX512VBMI_Intrin              ):   3.875  128.787    2.012 64
+ TSC (AVX512VBMI_Zach                ):   378808  SpeedUp (Scalar/AVX512VBMI_Zach                ):  25.857   19.300    0.302 64
+ TSC (AVX512VBMI2_VPCOMPRESSB_Asm    ):   208979  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB_Asm    ):  46.870   10.647    0.166 64
+ TSC (AVX512VBMI2_VPCOMPRESSB2_Asm   ):   210056  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB2_Asm   ):  46.630   21.404    0.167 128
+ TSC (AVX512VBMI2_VPCOMPRESSB4_Asm   ):   210768  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB4_Asm   ):  46.473   42.953    0.168 256
+ TSC (AVX512VBMI2_VPCOMPRESSB_ymm_Asm):   196111  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB_ymm_Asm):  49.946    4.996    0.156 32
+ TSC (AVX512VBMI2_VPCOMPRESSB2ymm_Asm):   198153  SpeedUp (Scalar/AVX512VBMI2_VPCOMPRESSB2ymm_Asm):  49.431   10.096    0.158 64

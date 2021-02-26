@@ -25,6 +25,11 @@ size_t remove_spaces_avx512vbmi_zach(const char* src, char* dst, size_t n);
 size_t despace_avx2_vpermd(const char* src_void, char* dst_void, size_t length);
 size_t despace_sse41_lut_216(const char* src_void, char* dst_void, size_t length);
 size_t despace_avx2_vpermd2(const char* src_void, char* dst_void, size_t length);
+size_t sse4_despace_branchless(const char * src_void, char * dst_void, size_t howmany);
+size_t sse4_despace_branchless_u4(const char* src_void, char* dst_void, size_t length);
+size_t sse4_despace_branchless_u2(const char* src_void, char* dst_void, size_t length);
+size_t avx2_despace_branchless(const char* src_void, char* dst_void, size_t length);
+size_t avx2_despace_branchless_u2(const char* src_void, char* dst_void, size_t length);
 size_t despace_branchless(unsigned char* dst_void, unsigned char * src_void, size_t length);
 
 typedef struct {
@@ -39,7 +44,12 @@ typedef struct {
 
 methods m[] = {
 	{"Scalar              ",	"X64        ",	 1, 500,	remove_spaces_scalar,				ISA_RDTSC,			true},
+	{"SSE4_DESPACE_BRANCHLESS        ",	"SSSE3      ",	16,	RETRY, sse4_despace_branchless,				ISA_SSE41,					true},
+	{"SSE4_DESPACE_BRANCHLESS_U4     ",	"SSSE3      ",	16,	RETRY, sse4_despace_branchless_u4,			ISA_SSE41,					true},
+	{"SSE4_DESPACE_BRANCHLESS_U2     ",	"SSSE3      ",	16,	RETRY, sse4_despace_branchless_u2,			ISA_SSE41,					true},
 	{"SSE41                          ",	"SSE41      ",	16,	RETRY,	despace_sse41_lut_216,				ISA_SSE41,			true},
+	{"AVX2_DESPACE_BRANCHLESS        ",	"AVX2       ",	32,	RETRY, avx2_despace_branchless,				ISA_AVX2,					true},
+	{"AVX2_DESPACE_BRANCHLESS_U2     ",	"AVX2       ",	32,	RETRY, avx2_despace_branchless_u2,			ISA_AVX2,					true},
 	{"AVX2_VPERMD         ",	"AVX2       ",	32, RETRY,	despace_avx2_vpermd,				ISA_AVX2,			true},
 	{"AVX2_VPERMD2                   ",	"AVX2       ",	32,	RETRY,	despace_avx2_vpermd2,				ISA_AVX2,			true},
 	{"AVX512BW_VPCOMPRESSD           ",	"AVX512BW   ",	64,	RETRY,	remove_spaces_avx512bw,				ISA_AVX512BW,		true},
@@ -502,6 +512,266 @@ size_t despace_avx2_vpermd2(const char* src_void, char* dst_void, size_t length)
 	return (size_t)(dst - ((uint8_t*)dst_void));
 }
 
+size_t sse4_despace_branchless(const char* src_void, char* dst_void, size_t length)
+{
+	uint8_t* src = (uint8_t*)src_void;
+	uint8_t* dst = (uint8_t*)dst_void;
+	size_t pos = 0;
+	__m128i spaces = _mm_set1_epi8(' ');
+	__m128i newline = _mm_set1_epi8('\n');
+	__m128i carriage = _mm_set1_epi8('\r');
+	size_t i = 0;
+	for (; i + 15 < length; i += 16) {
+		__m128i x = _mm_loadu_si128((const __m128i *)(src + i));
+		__m128i xspaces = _mm_cmpeq_epi8(x, spaces);
+		__m128i xnewline = _mm_cmpeq_epi8(x, newline);
+		__m128i xcarriage = _mm_cmpeq_epi8(x, carriage);
+		__m128i anywhite = _mm_or_si128(_mm_or_si128(xspaces, xnewline), xcarriage);
+		uint64_t mask16 = _mm_movemask_epi8(anywhite);
+		x = _mm_shuffle_epi8(x, *((__m128i *)despace_mask16 + (mask16 & 0x7fff)));
+		_mm_storeu_si128((__m128i *)(dst + pos), x);
+		pos += 16 - _mm_popcnt_u64(mask16);
+	}
+	for (; i < length; i++) {
+		char c = src[i];
+		if (c == '\r' || c == '\n' || c == ' ') {
+		  continue;
+		}
+		dst[pos++] = c;
+	}
+	return pos;
+}
+
+static inline __m128i cleanm128(__m128i x, __m128i spaces, __m128i newline,
+                                __m128i carriage, int *mask16) {
+  __m128i xspaces = _mm_cmpeq_epi8(x, spaces);
+  __m128i xnewline = _mm_cmpeq_epi8(x, newline);
+  __m128i xcarriage = _mm_cmpeq_epi8(x, carriage);
+  __m128i anywhite = _mm_or_si128(_mm_or_si128(xspaces, xnewline), xcarriage);
+  *mask16 = _mm_movemask_epi8(anywhite);
+  return _mm_shuffle_epi8(
+      x, _mm_loadu_si128((const __m128i *)despace_mask16 + (*mask16 & 0x7fff)));
+}
+
+//static inline size_t sse4_despace_branchless_u4(char *bytes, size_t howmany) {
+size_t sse4_despace_branchless_u4(const char* src_void, char* dst_void, size_t length)
+{
+	uint8_t* src = (uint8_t*)src_void;
+	uint8_t* dst = (uint8_t*)dst_void;
+  size_t pos = 0;
+  __m128i spaces = _mm_set1_epi8(' ');
+  __m128i newline = _mm_set1_epi8('\n');
+  __m128i carriage = _mm_set1_epi8('\r');
+  size_t i = 0;
+  for (; i + 64 - 1 < length; i += 64) {
+    __m128i x1 = _mm_loadu_si128((const __m128i *)(src + i));
+    __m128i x2 = _mm_loadu_si128((const __m128i *)(src + i + 16));
+    __m128i x3 = _mm_loadu_si128((const __m128i *)(src + i + 32));
+    __m128i x4 = _mm_loadu_si128((const __m128i *)(src + i + 48));
+
+    int mask16;
+    x1 = cleanm128(x1, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x1);
+    pos += 16 - _mm_popcnt_u32(mask16);
+
+    x2 = cleanm128(x2, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x2);
+    pos += 16 - _mm_popcnt_u32(mask16);
+
+    x3 = cleanm128(x3, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x3);
+    pos += 16 - _mm_popcnt_u32(mask16);
+
+    x4 = cleanm128(x4, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x4);
+    pos += 16 - _mm_popcnt_u32(mask16);
+  }
+  for (; i + 16 - 1 < length; i += 16) {
+    __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
+    int mask16;
+    x = cleanm128(x, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x);
+    pos += 16 - _mm_popcnt_u32(mask16);
+  }
+  for (; i < length; i++) {
+    char c = src[i];
+    if (c == '\r' || c == '\n' || c == ' ') {
+      continue;
+    }
+    dst[pos++] = c;
+  }
+  return pos;
+}
+
+//static inline size_t sse4_despace_branchless_u2(char *bytes, size_t howmany) {
+size_t sse4_despace_branchless_u2(const char* src_void, char* dst_void, size_t length)
+{
+	uint8_t* src = (uint8_t*)src_void;
+	uint8_t* dst = (uint8_t*)dst_void;
+  size_t pos = 0;
+  __m128i spaces = _mm_set1_epi8(' ');
+  __m128i newline = _mm_set1_epi8('\n');
+  __m128i carriage = _mm_set1_epi8('\r');
+  size_t i = 0;
+  for (; i + 32 - 1 < length; i += 32) {
+    __m128i x1 = _mm_loadu_si128((const __m128i *)(src + i));
+    __m128i x2 = _mm_loadu_si128((const __m128i *)(src + i + 16));
+    int mask16;
+    x1 = cleanm128(x1, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x1);
+    pos += 16 - _mm_popcnt_u32(mask16);
+
+    x2 = cleanm128(x2, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x2);
+    pos += 16 - _mm_popcnt_u32(mask16);
+  }
+  for (; i + 16 - 1 < length; i += 16) {
+    __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
+    int mask16;
+    x = cleanm128(x, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x);
+    pos += 16 - _mm_popcnt_u32(mask16);
+  }
+  for (; i < length; i++) {
+    char c = src[i];
+    if (c == '\r' || c == '\n' || c == ' ') {
+      continue;
+    }
+    dst[pos++] = c;
+  }
+  return pos;
+}
+
+static inline __m256i cleanm256(__m256i x, __m256i spaces, __m256i newline,
+                                __m256i carriage, unsigned int *mask1,
+                                unsigned int *mask2) {
+  __m256i xspaces = _mm256_cmpeq_epi8(x, spaces);
+  __m256i xnewline = _mm256_cmpeq_epi8(x, newline);
+  __m256i xcarriage = _mm256_cmpeq_epi8(x, carriage);
+  __m256i anywhite =
+      _mm256_or_si256(_mm256_or_si256(xspaces, xnewline), xcarriage);
+  unsigned int mask32 = _mm256_movemask_epi8(anywhite);
+  unsigned int maskhigh = (mask32) >> 16;
+  unsigned int masklow = (mask32)&0xFFFF;
+  assert(maskhigh < (1 << 16));
+  assert(masklow < (1 << 16));
+  *mask1 = masklow;
+  *mask2 = maskhigh;
+  __m256i mask = _mm256_loadu2_m128i((const __m128i *)despace_mask16 + (maskhigh & 0x7fff),
+                                     (const __m128i *)despace_mask16 + (masklow & 0x7fff));
+  return _mm256_shuffle_epi8(x, mask);
+}
+
+size_t avx2_despace_branchless(const char* src_void, char* dst_void, size_t length)
+{
+	uint8_t* src = (uint8_t*)src_void;
+	uint8_t* dst = (uint8_t*)dst_void;
+  size_t pos = 0;
+  __m128i spaces = _mm_set1_epi8(' ');
+  __m128i newline = _mm_set1_epi8('\n');
+  __m128i carriage = _mm_set1_epi8('\r');
+
+  __m256i spaces256 = _mm256_set1_epi8(' ');
+  __m256i newline256 = _mm256_set1_epi8('\n');
+  __m256i carriage256 = _mm256_set1_epi8('\r');
+
+  size_t i = 0;
+  for (; i + 32 - 1 < length; i += 32) {
+    __m256i x = _mm256_loadu_si256((const __m256i *)(src + i));
+    unsigned int masklow, maskhigh;
+    x = cleanm256(x, spaces256, newline256, carriage256, &masklow, &maskhigh);
+    int offset1 = 16 - _mm_popcnt_u32(masklow);
+    int offset2 = 16 - _mm_popcnt_u32(maskhigh);
+    _mm256_storeu2_m128i((__m128i *)(dst + pos + offset1),
+                         (__m128i *)(dst + pos), x);
+    pos += offset1 + offset2;
+  }
+  for (; i + 16 - 1 < length; i += 16) {
+    __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
+    int mask16;
+    x = cleanm128(x, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x);
+    pos += 16 - _mm_popcnt_u32(mask16);
+  }
+  for (; i < length; i++) {
+    char c = src[i];
+    if (c == '\r' || c == '\n' || c == ' ') {
+      continue;
+    }
+    dst[pos++] = c;
+  }
+  return pos;
+}
+
+size_t avx2_despace_branchless_u2(const char* src_void, char* dst_void, size_t length)
+{
+	uint8_t* src = (uint8_t*)src_void;
+	uint8_t* dst = (uint8_t*)dst_void;
+  size_t pos = 0;
+  __m128i spaces = _mm_set1_epi8(' ');
+  __m128i newline = _mm_set1_epi8('\n');
+  __m128i carriage = _mm_set1_epi8('\r');
+
+  __m256i spaces256 = _mm256_set1_epi8(' ');
+  __m256i newline256 = _mm256_set1_epi8('\n');
+  __m256i carriage256 = _mm256_set1_epi8('\r');
+
+  size_t i = 0;
+  for (; i + 64 - 1 < length; i += 64) {
+    __m256i x1, x2;
+    int offset11, offset12, offset21, offset22;
+    unsigned int masklow1, maskhigh1, masklow2, maskhigh2;
+
+    x1 = _mm256_loadu_si256((const __m256i *)(src + i));
+    x2 = _mm256_loadu_si256((const __m256i *)(src + i + 32));
+
+    x1 = cleanm256(x1, spaces256, newline256, carriage256, &masklow1,
+                   &maskhigh1);
+    offset11 = 16 - _mm_popcnt_u32(masklow1);
+    offset12 = 16 - _mm_popcnt_u32(maskhigh1);
+    x2 = cleanm256(x2, spaces256, newline256, carriage256, &masklow2,
+                   &maskhigh2);
+    offset21 = 16 - _mm_popcnt_u32(masklow2);
+    offset22 = 16 - _mm_popcnt_u32(maskhigh2);
+
+    _mm256_storeu2_m128i((__m128i *)(dst + pos + offset11),
+                         (__m128i *)(dst + pos), x1);
+    pos += offset11 + offset12;
+
+    _mm256_storeu2_m128i((__m128i *)(dst + pos + offset21),
+                         (__m128i *)(dst + pos), x2);
+    pos += offset21 + offset22;
+  }
+
+  for (; i + 32 - 1 < length; i += 32) {
+    unsigned int masklow, maskhigh;
+
+    int offset1, offset2;
+    __m256i x = _mm256_loadu_si256((const __m256i *)(src + i));
+    x = cleanm256(x, spaces256, newline256, carriage256, &masklow, &maskhigh);
+    offset1 = 16 - _mm_popcnt_u32(masklow);
+    offset2 = 16 - _mm_popcnt_u32(maskhigh);
+    _mm256_storeu2_m128i((__m128i *)(dst + pos + offset1),
+                         (__m128i *)(dst + pos), x);
+    pos += offset1 + offset2;
+  }
+  for (; i + 16 - 1 < length; i += 16) {
+    __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
+    int mask16;
+    x = cleanm128(x, spaces, newline, carriage, &mask16);
+    _mm_storeu_si128((__m128i *)(dst + pos), x);
+    pos += 16 - _mm_popcnt_u32(mask16);
+  }
+  for (; i < length; i++) {
+    char c = src[i];
+    if (c == '\r' || c == '\n' || c == ' ') {
+      continue;
+    }
+    dst[pos++] = c;
+  }
+  return pos;
+}
+
 unsigned __int64 Test(int n, char* inbuf, char* outbuf, size_t len, char* refbuf, size_t* compressed, double refTime = 0.0) {
 	unsigned __int64 startTime = 0, endTime = 0, diff = MAXULONG64;
 	TEST_PTR t = m[n].timed;
@@ -522,6 +792,7 @@ unsigned __int64 Test(int n, char* inbuf, char* outbuf, size_t len, char* refbuf
 		cout << "  SpeedUp (Scalar/" << std::setw(20) << left << m[n].name << "):";
 		cout << std::setw(8)<< right << std::setprecision(3) << fixed << refTime / (double)diff << ' ';
 		cout << std::setw(8)<< right << std::setprecision(3) << fixed << (double)diff / ((double)len / (double)m[n].length) << ' ';
+		cout << std::setw(8)<< right << std::setprecision(3) << fixed << (double)diff / (double)len << ' ';
 		cout << m[n].length << endl;
 	} else {
 		cout << endl;
@@ -563,7 +834,9 @@ int main(int argc, char* argv[])
 		outbuf1 = new char[inlength];
 
 		textfile.read(inbuf, inlength);
-
+		if (cpu_props.IsFeat(ISA_AVX)) {
+			_mm256_zeroall();
+		}
 		cout << "----------------------------------------" << endl;
 		diff = Test(0, inbuf, outbuf0, inlength, 0, &compressed, 0.0);
 		unsigned __int64 bestDiff = MAXULONG64, diff2 = 0;

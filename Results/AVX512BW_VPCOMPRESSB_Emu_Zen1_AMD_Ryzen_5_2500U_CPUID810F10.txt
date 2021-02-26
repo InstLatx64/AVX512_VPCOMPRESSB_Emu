@@ -1,0 +1,10 @@
+ TSC (Scalar                         ):  9255920
+ TSC (SSE4_DESPACE_BRANCHLESS        ):   465900  SpeedUp (Scalar/SSE4_DESPACE_BRANCHLESS        ):  19.867    5.934    0.371 16
+ TSC (SSE4_DESPACE_BRANCHLESS_U4     ):   428380  SpeedUp (Scalar/SSE4_DESPACE_BRANCHLESS_U4     ):  21.607    5.456    0.341 16
+ TSC (SSE4_DESPACE_BRANCHLESS_U2     ):   446360  SpeedUp (Scalar/SSE4_DESPACE_BRANCHLESS_U2     ):  20.736    5.685    0.355 16
+ TSC (SSE41                          ):   579820  SpeedUp (Scalar/SSE41                          ):  15.963    7.385    0.462 16
+ TSC (AVX2_DESPACE_BRANCHLESS        ):   452360  SpeedUp (Scalar/AVX2_DESPACE_BRANCHLESS        ):  20.461   11.524    0.360 32
+ TSC (AVX2_DESPACE_BRANCHLESS_U2     ):   433380  SpeedUp (Scalar/AVX2_DESPACE_BRANCHLESS_U2     ):  21.358   11.040    0.345 32
+ TSC (AVX2_VPERMD                    ):   936100  SpeedUp (Scalar/AVX2_VPERMD                    ):   9.888   23.847    0.745 32
+ TSC (AVX2_VPERMD2                   ):   636860  SpeedUp (Scalar/AVX2_VPERMD2                   ):  14.534   16.224    0.507 32
+ TSC (AVX2_ROT_MADD2                 ):   519180  SpeedUp (Scalar/AVX2_ROT_MADD2                 ):  17.828   13.226    0.413 32
