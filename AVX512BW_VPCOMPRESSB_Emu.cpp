@@ -572,26 +572,26 @@ size_t sse4_despace_branchless_u4(const char* src_void, char* dst_void, size_t l
     int mask16;
     x1 = cleanm128(x1, spaces, newline, carriage, &mask16);
     _mm_storeu_si128((__m128i *)(dst + pos), x1);
-    pos += 16 - _mm_popcnt_u32(mask16);
+    pos += 16 - (size_t)_mm_popcnt_u32(mask16);
 
     x2 = cleanm128(x2, spaces, newline, carriage, &mask16);
     _mm_storeu_si128((__m128i *)(dst + pos), x2);
-    pos += 16 - _mm_popcnt_u32(mask16);
+    pos += 16 - (size_t)_mm_popcnt_u32(mask16);
 
     x3 = cleanm128(x3, spaces, newline, carriage, &mask16);
     _mm_storeu_si128((__m128i *)(dst + pos), x3);
-    pos += 16 - _mm_popcnt_u32(mask16);
+    pos += 16 - (size_t)_mm_popcnt_u32(mask16);
 
     x4 = cleanm128(x4, spaces, newline, carriage, &mask16);
     _mm_storeu_si128((__m128i *)(dst + pos), x4);
-    pos += 16 - _mm_popcnt_u32(mask16);
+    pos += 16 - (size_t)_mm_popcnt_u32(mask16);
   }
   for (; i + 16 - 1 < length; i += 16) {
     __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
     int mask16;
     x = cleanm128(x, spaces, newline, carriage, &mask16);
     _mm_storeu_si128((__m128i *)(dst + pos), x);
-    pos += 16 - _mm_popcnt_u32(mask16);
+    pos += 16 - (size_t)_mm_popcnt_u32(mask16);
   }
   for (; i < length; i++) {
     char c = src[i];
@@ -619,18 +619,18 @@ size_t sse4_despace_branchless_u2(const char* src_void, char* dst_void, size_t l
     int mask16;
     x1 = cleanm128(x1, spaces, newline, carriage, &mask16);
     _mm_storeu_si128((__m128i *)(dst + pos), x1);
-    pos += 16 - _mm_popcnt_u32(mask16);
+    pos += 16 - (size_t)_mm_popcnt_u32(mask16);
 
     x2 = cleanm128(x2, spaces, newline, carriage, &mask16);
     _mm_storeu_si128((__m128i *)(dst + pos), x2);
-    pos += 16 - _mm_popcnt_u32(mask16);
+    pos += 16 - (size_t)_mm_popcnt_u32(mask16);
   }
   for (; i + 16 - 1 < length; i += 16) {
     __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
     int mask16;
     x = cleanm128(x, spaces, newline, carriage, &mask16);
     _mm_storeu_si128((__m128i *)(dst + pos), x);
-    pos += 16 - _mm_popcnt_u32(mask16);
+    pos += 16 - (size_t)_mm_popcnt_u32(mask16);
   }
   for (; i < length; i++) {
     char c = src[i];
@@ -666,110 +666,131 @@ size_t avx2_despace_branchless(const char* src_void, char* dst_void, size_t leng
 {
 	uint8_t* src = (uint8_t*)src_void;
 	uint8_t* dst = (uint8_t*)dst_void;
-  size_t pos = 0;
-  __m128i spaces = _mm_set1_epi8(' ');
-  __m128i newline = _mm_set1_epi8('\n');
-  __m128i carriage = _mm_set1_epi8('\r');
+	uint8_t* dstStart = dst;
 
-  __m256i spaces256 = _mm256_set1_epi8(' ');
-  __m256i newline256 = _mm256_set1_epi8('\n');
-  __m256i carriage256 = _mm256_set1_epi8('\r');
+	char* tbl = (char*)despace_mask16;
 
   size_t i = 0;
   for (; i + 32 - 1 < length; i += 32) {
     __m256i x = _mm256_loadu_si256((const __m256i *)(src + i));
-    unsigned int masklow, maskhigh;
-    x = cleanm256(x, spaces256, newline256, carriage256, &masklow, &maskhigh);
-    int offset1 = 16 - _mm_popcnt_u32(masklow);
-    int offset2 = 16 - _mm_popcnt_u32(maskhigh);
-    _mm256_storeu2_m128i((__m128i *)(dst + pos + offset1),
-                         (__m128i *)(dst + pos), x);
-    pos += offset1 + offset2;
+
+		__m256i match = _mm256_cmpeq_epi8(x, _mm256_shuffle_epi8(_mm256_set_epi32(
+			0xffff0dff, 0xff0affff, 0xffffffff, 0xffffff20, 
+			0xffff0dff, 0xff0affff, 0xffffffff, 0xffffff20
+		), x));
+		uint32_t bitmask = _mm256_movemask_epi8(match);
+
+		int masklo = (bitmask << 4) & 0x7fff0;
+		int maskhi = (bitmask >> 12) & 0x7fff0;
+		__m256i shuf = _mm256_inserti128_si256(
+			_mm256_castsi128_si256(_mm_loadu_si128((__m128i*)(tbl + masklo))),
+			_mm_loadu_si128((__m128i*)(tbl + maskhi)),
+			1
+		);
+		x = _mm256_shuffle_epi8(x, shuf);
+		_mm_storeu_si128((__m128i*)(dst + i), _mm256_castsi256_si128(x));
+		dst -= _mm_popcnt_u32(bitmask & 0xffff);
+		_mm_storeu_si128((__m128i*)(dst + i + 16), _mm256_extracti128_si256(x, 1));
+		dst -= _mm_popcnt_u32(bitmask >> 16);
   }
-  for (; i + 16 - 1 < length; i += 16) {
+	if (i + 16 - 1 < length) {
     __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
-    int mask16;
-    x = cleanm128(x, spaces, newline, carriage, &mask16);
-    _mm_storeu_si128((__m128i *)(dst + pos), x);
-    pos += 16 - _mm_popcnt_u32(mask16);
+
+		__m128i match = _mm_cmpeq_epi8(x, _mm_shuffle_epi8(_mm_set_epi32(
+			0xffff0dff, 0xff0affff, 0xffffffff, 0xffffff20
+		), x));
+		uint32_t bitmask = _mm_movemask_epi8(match);
+
+		int mask = (bitmask << 4) & 0x7fff0;
+		__m128i shuf = _mm_loadu_si128((__m128i*)(tbl + mask));
+		x = _mm_shuffle_epi8(x, shuf);
+		_mm_storeu_si128((__m128i*)(dst + i), x);
+		dst -= _mm_popcnt_u32(bitmask);
+		i += 16;
   }
   for (; i < length; i++) {
     char c = src[i];
     if (c == '\r' || c == '\n' || c == ' ') {
+			dst--;
       continue;
     }
-    dst[pos++] = c;
+		dst[i] = c;
   }
-  return pos;
+	return dstStart - dst;
 }
 
 size_t avx2_despace_branchless_u2(const char* src_void, char* dst_void, size_t length)
 {
 	uint8_t* src = (uint8_t*)src_void;
 	uint8_t* dst = (uint8_t*)dst_void;
-  size_t pos = 0;
-  __m128i spaces = _mm_set1_epi8(' ');
-  __m128i newline = _mm_set1_epi8('\n');
-  __m128i carriage = _mm_set1_epi8('\r');
+	uint8_t* dstStart = dst;
 
-  __m256i spaces256 = _mm256_set1_epi8(' ');
-  __m256i newline256 = _mm256_set1_epi8('\n');
-  __m256i carriage256 = _mm256_set1_epi8('\r');
+	char* tbl = (char*)despace_mask16;
+	__m256i matchTbl256 = _mm256_set_epi32(
+		0xffff0dff, 0xff0affff, 0xffffffff, 0xffffff20,
+		0xffff0dff, 0xff0affff, 0xffffffff, 0xffffff20
+	);
 
   size_t i = 0;
   for (; i + 64 - 1 < length; i += 64) {
-    __m256i x1, x2;
-    int offset11, offset12, offset21, offset22;
-    unsigned int masklow1, maskhigh1, masklow2, maskhigh2;
+		__m256i x1 = _mm256_loadu_si256((const __m256i*)(src + i));
+		__m256i x2 = _mm256_loadu_si256((const __m256i*)(src + i + 32));
 
-    x1 = _mm256_loadu_si256((const __m256i *)(src + i));
-    x2 = _mm256_loadu_si256((const __m256i *)(src + i + 32));
+		__m256i match1 = _mm256_cmpeq_epi8(x1, _mm256_shuffle_epi8(matchTbl256, x1));
+		__m256i match2 = _mm256_cmpeq_epi8(x2, _mm256_shuffle_epi8(matchTbl256, x2));
+		uint32_t bitmask1 = _mm256_movemask_epi8(match1);
+		uint32_t bitmask2 = _mm256_movemask_epi8(match2);
 
-    x1 = cleanm256(x1, spaces256, newline256, carriage256, &masklow1,
-                   &maskhigh1);
-    offset11 = 16 - _mm_popcnt_u32(masklow1);
-    offset12 = 16 - _mm_popcnt_u32(maskhigh1);
-    x2 = cleanm256(x2, spaces256, newline256, carriage256, &masklow2,
-                   &maskhigh2);
-    offset21 = 16 - _mm_popcnt_u32(masklow2);
-    offset22 = 16 - _mm_popcnt_u32(maskhigh2);
+		int masklo1 = (bitmask1 << 4) & 0x7fff0;
+		int maskhi1 = (bitmask1 >> 12) & 0x7fff0;
+		int masklo2 = (bitmask2 << 4) & 0x7fff0;
+		int maskhi2 = (bitmask2 >> 12) & 0x7fff0;
+		__m256i shuf1 = _mm256_inserti128_si256(
+			_mm256_castsi128_si256(_mm_loadu_si128((__m128i*)(tbl + masklo1))),
+			_mm_loadu_si128((__m128i*)(tbl + maskhi1)),
+			1
+		);
+		__m256i shuf2 = _mm256_inserti128_si256(
+			_mm256_castsi128_si256(_mm_loadu_si128((__m128i*)(tbl + masklo2))),
+			_mm_loadu_si128((__m128i*)(tbl + maskhi2)),
+			1
+		);
+		x1 = _mm256_shuffle_epi8(x1, shuf1);
+		x2 = _mm256_shuffle_epi8(x2, shuf2);
 
-    _mm256_storeu2_m128i((__m128i *)(dst + pos + offset11),
-                         (__m128i *)(dst + pos), x1);
-    pos += offset11 + offset12;
+		uint8_t* dst2 = dst - _mm_popcnt_u32(bitmask1);
+		_mm_storeu_si128((__m128i*)(dst + i), _mm256_castsi256_si128(x1));
+		dst -= _mm_popcnt_u32(bitmask1 & 0xffff);
+		_mm_storeu_si128((__m128i*)(dst + i + 16), _mm256_extracti128_si256(x1, 1));
 
-    _mm256_storeu2_m128i((__m128i *)(dst + pos + offset21),
-                         (__m128i *)(dst + pos), x2);
-    pos += offset21 + offset22;
+		dst = dst2 - _mm_popcnt_u32(bitmask2);
+		_mm_storeu_si128((__m128i*)(dst2 + i + 32), _mm256_castsi256_si128(x2));
+		dst2 -= _mm_popcnt_u32(bitmask2 & 0xffff);
+		_mm_storeu_si128((__m128i*)(dst2 + i + 48), _mm256_extracti128_si256(x2, 1));
   }
+	for (; i + 16 - 1 < length; i += 16) {
+		__m128i x = _mm_loadu_si128((const __m128i*)(src + i));
 
-  for (; i + 32 - 1 < length; i += 32) {
-    unsigned int masklow, maskhigh;
+		__m128i match = _mm_cmpeq_epi8(x, _mm_shuffle_epi8(_mm_set_epi32(
+			0xffff0dff, 0xff0affff, 0xffffffff, 0xffffff20
+		), x));
+		uint32_t bitmask = _mm_movemask_epi8(match);
 
-    int offset1, offset2;
-    __m256i x = _mm256_loadu_si256((const __m256i *)(src + i));
-    x = cleanm256(x, spaces256, newline256, carriage256, &masklow, &maskhigh);
-    offset1 = 16 - _mm_popcnt_u32(masklow);
-    offset2 = 16 - _mm_popcnt_u32(maskhigh);
-    _mm256_storeu2_m128i((__m128i *)(dst + pos + offset1),
-                         (__m128i *)(dst + pos), x);
-    pos += offset1 + offset2;
-  }
-  for (; i + 16 - 1 < length; i += 16) {
-    __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
-    int mask16;
-    x = cleanm128(x, spaces, newline, carriage, &mask16);
-    _mm_storeu_si128((__m128i *)(dst + pos), x);
-    pos += 16 - _mm_popcnt_u32(mask16);
+		int mask = (bitmask << 4) & 0x7fff0;
+		__m128i shuf = _mm_loadu_si128((__m128i*)(tbl + mask));
+		x = _mm_shuffle_epi8(x, shuf);
+		_mm_storeu_si128((__m128i*)(dst + i), x);
+		dst -= _mm_popcnt_u32(bitmask);
   }
   for (; i < length; i++) {
     char c = src[i];
     if (c == '\r' || c == '\n' || c == ' ') {
+			dst--;
       continue;
     }
-    dst[pos++] = c;
+		dst[i] = c;
   }
-  return pos;
+	return dstStart - dst;
 }
 
 unsigned __int64 Test(int n, char* inbuf, char* outbuf, size_t len, char* refbuf, size_t* compressed, double refTime = 0.0) {
